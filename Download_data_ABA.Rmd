@@ -1,0 +1,193 @@
+---
+title: "Download WQ Data from winter 1990"
+author: "Alejandra Botero-Acosta"
+date: "10/14/2022"
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+
+Last updated OCt, 2022 by Alejandra Botero.    
+**This script is used to download from the USGS Water Quality portal.**  
+Final raw dataset downloaded saved as allHUCdataV2.RData
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+#knitr::opts_chunk$set(eval = FALSE)#include output without rerunning
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r, include=FALSE}
+library(tidyverse) #data cleaning/loading
+library(dataRetrieval) #USGS data import package
+```
+
+```{r, include=FALSE}
+saveDataPath <- "/home/boteroacostaa/P_and_N_Alejandra_codes/data/downloaded_WQP_1990-2022/"
+```
+
+
+# Download data from WQP  
+Save workspace the first time is run. (Not necessary to run again! import workspace or file by file (see next chunk))
+```{r, eval = FALSE}
+
+#huc 10 had to be divided in 4-digit huc to be downloaded
+dataList <- list("05", "06", "07", "08", "1001;1002;1003;1004;1005;1006;1007", "1008;1009;1010;1011;1012;1013;1014;1015", "1016;1017;1018;1019;1020;1021;1022;1023", "1024;1025;1026;1027;1028;1029;1030", "11")
+
+namesList <- list("05", "06", "07", "08", "10_01_07", "10_08_15", "10_16_23", "10_24_30", "11")
+
+#define if downloading from start date
+WQPstartdate <- "12-01-1989" 
+
+i=1
+for(huc in dataList){
+  HUCdata<-readWQPdata(huc=huc, characteristicType="Nutrient", siteType="Stream", startDateLo=WQPstartdate)
+  huc_name<-namesList[i]
+  #test with no startdate
+  #HUCdata<-readWQPdata(huc=huc, characteristicType="Nutrient", siteType="Stream")
+  #save downloaded data to specified filepath
+  write.csv(HUCdata, paste0(saveDataPath, "HUC", huc_name, "data.csv"), row.names = F)
+  #assign data to huc##data variable in environment
+  assign(paste0("HUC", huc_name, "data"), HUCdata)
+  #save also R dataframe
+  saveRDS(HUCdata,file=paste0(saveDataPath, "HUC", huc_name, "data.RData"))
+  print(paste0("Data loaded into global environment and named as ", paste0("huc", huc, "data")))
+  i=i+1
+}
+```
+
+When importing Rdata file by file (alternative option to importing the whole workspace)
+```{r, eval = FALSE}
+namesList <- list("05", "06", "07", "08", "10_01_07", "10_08_15", "10_16_23", "10_24_30", "11")
+
+for (huc_name in namesList){
+  temporal<-readRDS(paste0(saveDataPath, "HUC", huc_name, "data.RData"))
+  #assign data to huc##data variable in environment
+  assign(paste0("HUC", huc_name, "data"), temporal)
+}
+```
+
+Use following chunk when data types don't match try binding first (next step) to check for errors due to data type
+```{r, eval = FALSE}
+class(HUC05data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC06data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC07data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC08data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC11data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC10_08_15data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC10_16_23data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+class(HUC10_24_30data$DetectionQuantitationLimitMeasure.MeasureValue) <- "double"
+```
+
+Bind dataframes to combine and save dataframe in memory (next time just import this dataframe)
+```{r, eval = FALSE}
+allHUCdata<-dplyr::bind_rows(HUC05data, HUC06data, HUC07data, HUC08data, HUC10_01_07data, HUC10_08_15data, HUC10_16_23data, HUC10_24_30data, HUC11data)
+tot_num_rec<-nrow(allHUCdata)
+#save R dataframe. COMMENTED TO AVOID OVERWRITING
+#save(allHUCdata,file=paste0(saveDataPath, "allHUCdata.RData"))
+#save(tot_num_rec,file=paste0(saveDataPath, "tot_num_rec.RData"))
+```
+
+Identify unique parameters in field: CharacteristicName
+```{r, eval = FALSE}
+#allHUCdata$ResultMeasure.MeasureUnitCode<-as.character(fullresults$ResultMeasure.MeasureUnitCode)
+allParamterNAmes<-allHUCdata%>%distinct(CharacteristicName)
+#save R dataframe. COMMENTED TO AVOID OVERWRITING
+#save(allParamterNAmes,file=paste0(saveDataPath, "allParamterNAmes.RData"))
+```
+
+Resulting unique parameters in field: CharacteristicName
+```{r, echo = FALSE} 
+#ECHO=False hides code, shows result
+#imported to show result when rendering html
+load(paste0(saveDataPath, "allParamterNAmes.RData"))
+allParamterNAmes
+```
+
+Resulting total number of records:
+```{r, echo = FALSE} 
+#ECHO=False hides code, shows result
+#imported to show result when rendering html
+load(paste0(saveDataPath, "tot_num_rec.RData"))
+tot_num_rec
+```
+
+Identify dates in database
+```{r, eval = FALSE} 
+alldates<-as.Date(allHUCdata$ActivityStartDate, format = "%Y-%m-%d")
+min_date<-min(alldates)
+max_date<-max(alldates)
+
+#save R dataframe. COMMENTED TO AVOID OVERWRITING
+#save(min_date,file=paste0(saveDataPath, "min_date.RData"))
+#save(max_date,file=paste0(saveDataPath, "max_date.RData"))
+
+```
+
+Resulting max an min dates:
+```{r, echo = FALSE} 
+#ECHO=False; runs, hides code, shows result
+#imported to show result when rendering html
+load(paste0(saveDataPath, "min_date.RData"))
+load(paste0(saveDataPath, "max_date.RData"))
+min_date
+max_date
+```
+Filtering dates to remove anomalous ones, creating dataset V2
+```{r, eval = FALSE} 
+allHUCdataV2<-filter(allHUCdata, ActivityStartDate >=  "1989-12-01" & ActivityStartDate <= "2022-09-30")
+tot_num_recV2<-nrow(allHUCdataV2)
+#save R dataframe. COMMENTED TO AVOID OVERWRITING
+#save(allHUCdataV2,file=paste0(saveDataPath, "allHUCdataV2.RData"))
+#save(tot_num_recV2,file=paste0(saveDataPath, "tot_num_recV2.RData"))
+```
+
+
+Identify dates in database V2
+```{r, eval = FALSE} 
+alldatesV2<-as.Date(allHUCdataV2$ActivityStartDate, format = "%Y-%m-%d")
+min_dateV2<-min(alldatesV2)
+max_dateV2<-max(alldatesV2)
+
+#save R dataframe. COMMENTED TO AVOID OVERWRITING
+#save(min_dateV2,file=paste0(saveDataPath, "min_dateV2.RData"))
+#save(max_dateV2,file=paste0(saveDataPath, "max_dateV2.RData"))
+
+```
+
+
+Resulting max an min dates afte removing anomalous dates (V2):
+```{r, echo = FALSE} 
+#ECHO=False; runs, hides code, shows result
+#imported to show result when rendering html
+load(paste0(saveDataPath, "min_dateV2.RData"))
+load(paste0(saveDataPath, "max_dateV2.RData"))
+min_dateV2
+max_dateV2
+```
+
+
+Resulting total number of records after removing anomalous dates (V2):
+```{r, echo = FALSE} 
+#ECHO=False hides code, shows result
+#imported to show result when rendering html
+load(paste0(saveDataPath, "tot_num_recV2.RData"))
+tot_num_recV2
+```
+
+```{r, echo = FALSE} 
+#ECHO=False; runs, hides code, shows result
+
+```
+
+```{r, include=FALSE}
+#include_false, runs, hides code, hides result
+```
+
+```{r, eval = FALSE} 
+#eval=false, doesn't run
+```
