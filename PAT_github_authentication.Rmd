@@ -1,0 +1,6 @@
+
+
+```{r, include=FALSE}
+library(credentials) #git autentication
+credentials::set_github_pat() #enter token Personal Access Token (PAT): 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
+```
